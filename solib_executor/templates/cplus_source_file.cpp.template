@@ -1,0 +1,6 @@
+##include <%(lib_name)s>
+
+int main(){
+    auto result = %(method_name)s(%(args)s);
+    cout << result << endl;
+}
