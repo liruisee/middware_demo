@@ -1,0 +1,10 @@
+django==2.2.4
+djangorestframework==3.9.2
+uWSGI==2.0.18
+mysqlclient==1.4.2.post1
+pymysql==0.9.3
+oslo.utils==3.42.1
+uWSGI==2.0.18
+requests==2.23.0
+chardet==3.0.4
+chardet==3.0.4

@@ -1,0 +1,24 @@
+[uwsgi]
+http-socket = 0.0.0.0:8080
+chdir = %(project_path)s/solib_executor/deploy_files
+workers = %(workers)s
+master = true
+wsgi-file = %(project_path)s/solib_executor/wsgi.py
+callable = application
+# 序列化接受的内容，如果可能的话
+thunder-lock = true
+# 启用线程
+enable-threads = true
+# 设置自中断时间
+harakiri = 60
+# 自动移除unix Socket和pid文件当服务停止的时候
+vacuum=true
+# 设置缓冲
+post-buffering = 4096
+# 设置代码改动后自动加载
+py-autoreload = 1
+# pid文件位置
+pidfile = %(project_path)s/solib_executor/deploy_files/uwsgi.pid
+# 启动uwsgi的用户名和用户组
+# uid=root
+# gid=root
