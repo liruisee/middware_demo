@@ -6,7 +6,7 @@ void print_args(){
 }
 
 template <typename Arg, typename... T>
-void print_args(Arg arg, T... t){
+ void print_args(Arg arg, T... t){
     int argsLength = sizeof...(t);
     if(argsLength == 0){
         std::cout << arg;
