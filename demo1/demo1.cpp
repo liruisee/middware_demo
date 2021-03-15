@@ -26,7 +26,7 @@ void func2(int a, int b, int c){
     std::cout << "func2 call" << std::endl;
 }
 
-int func3(int a, std::string &&b, char c){
+int func3(int a, std::string b, char c){
     std::cout << "func3传入的参数为：";
     print_args(a, b, c);
     std::cout << "func3 call" << std::endl;

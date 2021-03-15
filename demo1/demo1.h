@@ -11,6 +11,6 @@ extern "C" void func1();
 
 extern "C" void func2(int, int, int);
 
-extern "C" int func3(int, std::string &&, char);
+extern "C" int func3(int, std::string, char);
 
 #endif //MIDDWARE_DEMO_DEMO1_H

@@ -18,5 +18,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # path('arsenal_magic/', include('aflow.urls')),
+    path('executors/', include('excutors.urls')),
 ]

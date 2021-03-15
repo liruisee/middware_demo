@@ -1,7 +1,9 @@
-##include <%(lib_name)s>
+#include "%(header_file_name)s"
+#include <iostream>
+
+using namespace std;
 
 int main(){
-    %(args_define)s;
-    auto result = %(method_name)s(%(args)s);
-    cout << result << endl;
+    %(exec_code)s;
+    return 0;
 }
