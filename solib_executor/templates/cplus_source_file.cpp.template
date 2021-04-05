@@ -1,9 +1,95 @@
-#include "%(header_file_name)s"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/prettywriter.h"
 #include <iostream>
+#include <vector>
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
+%(user_include)s
 
-using namespace std;
+using namespace rapidjson;
 
-int main(){
-    %(exec_code)s;
-    return 0;
+
+Value *to_json(int i, Document &d){
+    auto *pv = new Value();
+    pv->SetInt(i);
+    return pv;
 }
+
+Value *to_json(int* i, Document &d){
+    auto *pv = new Value();
+    if(i == nullptr){
+        pv->SetNull();
+        return pv;
+    }
+    pv->SetInt(*i);
+    return pv;
+}
+
+Value *to_json(std::string &s, Document &d){
+    auto *pv = new Value();
+    pv->SetString(s.c_str(), (int)s.length());
+    return pv;
+}
+
+Value *to_json(std::string* s, Document &d){
+    auto *pv = new Value();
+    if(s == nullptr){
+        pv->SetNull();
+        return pv;
+    }
+    pv->SetString((*s).c_str(), (int)(*s).length());
+    return pv;
+}
+
+
+
+Value *to_json(bool b, Document &d){
+    auto *pv = new Value();
+    pv->SetBool(b);
+    return pv;
+}
+
+
+template<typename T>
+Value *to_json(T *p, Document &d){
+    auto *pv = new Value();
+    if(p == nullptr){
+        pv->SetNull();
+        return pv;
+    }
+    return to_json(*p, d);
+}
+
+
+template<typename T>
+Value *to_json(std::vector<T> &vec, Document &d){
+    auto *pv = new Value();
+    pv->SetArray();
+    for(auto it=begin(vec);it!=end(vec);++it){
+        Value *tmp = to_json(*it, d);
+        pv->PushBack(*tmp, d.GetAllocator());
+    }
+    return pv;
+}
+
+template<typename T>
+Value *to_json(std::vector<T> *vec, Document &d){
+    auto *pv = new Value();
+    if(vec == nullptr){
+        pv->SetNull();
+        return pv;
+    }
+    pv->SetArray();
+    for(auto it=begin(*vec);it!=end(*vec);++it){
+        Value *tmp = to_json(*it, d);
+        pv->PushBack(*tmp, d.GetAllocator());
+    }
+    return pv;
+}
+
+%(user_function)s
+
+%(user_main)s

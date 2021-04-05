@@ -1,6 +1,6 @@
 from functools import partial
 from django.conf import settings
-from log_tool.log_simple_util import get_logger, get_request_logger
+from utils.log_utils.log_simple_util import get_logger, get_request_logger
 import os
 
 
