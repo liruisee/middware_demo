@@ -1,10 +1,5 @@
-from base_app.base_view import BaseView
-from django.core.handlers.wsgi import WSGIRequest
-from base_app.responses import JsonResponse
-import json
 import os
-import subprocess
-from base_app.exceptions import ViewException
+import copy
 import re
 import random
 
@@ -12,10 +7,9 @@ import random
 template_file_path = str(os.path.abspath(__file__).rsplit('/', 2)[0]) + '/templates/cplus_source_file.cpp.template'
 
 
-class BaseExecutor(BaseView):
+class BaseExecutor:
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
         self.template_dir = str(os.path.abspath(__file__).rsplit('/', 2)[0]) + '/templates'
         self.demo_dir = str(os.path.abspath(__file__).rsplit('/', 3)[0]) + '/demo1'
         self.var_id = 0
@@ -350,37 +344,91 @@ class BaseExecutor(BaseView):
         result = f.read() % render_map
         return result
 
-    def post(self, request: WSGIRequest):
-        body = json.loads(request.body.decode('utf-8'))
-        code_content = self.get_render_template_content(body)
-        cpp_file_path = f'{self.template_dir}/a.cpp'
-        target_file_path = f'{self.template_dir}/a.out'
-        with open(cpp_file_path, 'w') as f:
-            f.write(code_content)
-        build_cmd = \
-            f'g++ -std=c++11 {cpp_file_path} -I {self.demo_dir} ' \
-            f'-L {self.demo_dir} -ldemo ' \
-            f'-o {target_file_path}'
-        build_status, build_result = subprocess.getstatusoutput(build_cmd)
-        status = 200
-        if build_status != 0:
-            exec_result = 'build failed, can not execute'
-            status = 500
-        else:
-            exec_cmd = \
-                f'export DYLD_LIBRARY_PATH={self.demo_dir} &&' \
-                f'export LD_LIBRARY_PATH={self.demo_dir} &&' \
-                f'{target_file_path}'
-            exec_status, exec_result = subprocess.getstatusoutput(exec_cmd)
-            if exec_status != 0:
-                status = 500
 
-        result = {
-            'result': {
-                'build_result': build_result,
-                'exec_result': exec_result
-            },
-            'message': 'success',
-            'status': status
+body = request_info = {
+    "header_file_names": ["demo.h"],
+    "cxx_flags": "-I/usr/local/include",
+    "middleware_name": "demo1",
+    "class_name": "MiddleWare",
+    "method_name": "get_user",
+    "args": [
+        {
+            "type": "string",
+            "is_point": False,
+            "point_depth": 0,
+            "value": "zhangsan",
+            # "rule": "rand()",  # 0~1随机浮点
+            # "rule": "rand(0, 10)",  # 0~10随机浮点
+            # "rule": "randint(0, 10)",  # 0~10随机整数，不包括10
+            # "rule": "periphery(0, 10, 0.01)",   # 0-10边界检测，会生成4个测试数字：[-0.01, 0.01, 9.99, 10.01]
+            # "rule": "range(10)",   # 范围值，生成：0,1,2,3,4,5,6,7,8,9
+            # "rule": "range(1, 8)",  # 限定开始和结束数字的范围值，生成：1,2,3,4,5,6,7
+            # "rule": "range(1, 12, 2)"  # 限定开始和结束数字并指定步长的范围值，生成：1,3,5,7,9,11
+        },
+        {
+            "type": "string",
+            "is_point": False,
+            "point_depth": 0,
+            "value": "beijing"
         }
-        return JsonResponse(result)
+    ],
+    'return_type': {
+        "type": "class",
+        "is_point": True,
+        "point_depth": 1,
+        "class_name": "User",
+        "key_name": "user",
+        "members": [
+            {
+                "type": "string",
+                "is_point": False,
+                "point_depth": 0,
+                "key_name": "school"
+            },
+            {
+                "type": "string",
+                "is_point": False,
+                "point_depth": 0,
+                "key_name": "city"
+            },
+            {
+                "type": "array",
+                "is_point": False,
+                "point_depth": 0,
+                "key_name": "peoples",
+                "sub_desc": {
+                    "type": "class",
+                    "is_point": False,
+                    "point_depth": 0,
+                    "class_name": "People",
+                    "key_name": "people",
+                    "members": [
+                        {
+                            "type": "string",
+                            "is_point": False,
+                            "point_depth": 0,
+                            "key_name": "name"
+                        },
+                        {
+                            "type": "int",
+                            "is_point": False,
+                            "point_depth": 0,
+                            "key_name": "age"
+                        },
+                        {
+                            "type": "int",
+                            "is_point": False,
+                            "point_depth": 0,
+                            "key_name": "sex"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+
+be = BaseExecutor()
+rule = be.rule_to_list("periphery(1, 20, 0.05)")
+content = be.get_render_template_content(body)
+print(content)
