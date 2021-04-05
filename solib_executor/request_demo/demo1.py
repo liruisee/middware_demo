@@ -24,58 +24,48 @@ data = {
     ],
     'return_type': {
         "type": "class",
-        "is_point": False,
-        "point_depth": 0,
         "class_name": "User",
         "key_name": "user",
         "members": [
             {
                 "type": "string",
-                "is_point": False,
-                "point_depth": 0,
                 "key_name": "school"
             },
             {
                 "type": "string",
-                "is_point": False,
-                "point_depth": 0,
                 "key_name": "city"
             },
             {
                 "type": "enum",
-                "is_point": False,
-                "point_depth": 0,
                 "key_name": "city",
                 "value": "enum_key"
             },
             {
                 "type": "array",
-                "is_point": False,
-                "point_depth": 0,
                 "key_name": "peoples",
                 "sub_desc": {
                     "type": "class",
-                    "is_point": False,
-                    "point_depth": 0,
                     "class_name": "People",
                     "key_name": "people",
                     "members": [
                         {
                             "type": "string",
-                            "is_point": False,
-                            "point_depth": 0,
                             "key_name": "name"
                         },
                         {
+                            "type": "string",
+                            "key_name": "p_name"
+                        },
+                        {
                             "type": "int",
-                            "is_point": False,
-                            "point_depth": 0,
                             "key_name": "age"
                         },
                         {
                             "type": "int",
-                            "is_point": False,
-                            "point_depth": 0,
+                            "key_name": "p_age"
+                        },
+                        {
+                            "type": "int",
                             "key_name": "sex"
                         }
                     ]
@@ -87,3 +77,4 @@ data = {
 
 res = requests.post(url, json=data)
 print(res.json()['result']['exec_result'])
+print(res.json())
