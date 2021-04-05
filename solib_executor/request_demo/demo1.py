@@ -87,8 +87,3 @@ data = {
 
 res = requests.post(url, json=data)
 print(res.json()['result']['exec_result'])
-# result = res.json()['result']
-# regexp = re.compile('((?:.|\n)+)\x01(.*)\x01')
-# sys_console, retval = re.search(regexp, result).groups()
-#
-# print(retval)
