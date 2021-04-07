@@ -1,28 +1,29 @@
 import requests
-import json
-import re
 
 
-url = 'http://api.shhy.tech:10080/executors/index'
+url = "http://api.shhy.tech:10080/executors/index"
 data = {
-    'header_file_names': ['demo.h'],
-    'class_name': 'MiddleWare',
-    'method_name': 'get_user',
-    'args': [
+    "header_file_names": ["demo.h"],
+    "class_name": "MiddleWare",
+    "cxx_flags": "",
+    "middleware_name": "demo",
+    "method_name": "get_user",
+    "args": [
         {
-            'type': 'string',
-            'value': 'zhangsan',
+            "type": "string",
+            "value": "zhangsan",
             "is_point": False,
-            "point_depth": 0
+            "point_depth": 0,
+            "rule": "randint(100, 500)"
         },
         {
-            'type': 'string',
-            'value': 'beijing',
+            "type": "string",
+            "value": "beijing",
             "is_point": False,
             "point_depth": 0
         }
     ],
-    'return_type': {
+    "return_type": {
         "type": "class",
         "class_name": "User",
         "key_name": "user",
@@ -34,11 +35,6 @@ data = {
             {
                 "type": "string",
                 "key_name": "city"
-            },
-            {
-                "type": "enum",
-                "key_name": "city",
-                "value": "enum_key"
             },
             {
                 "type": "array",
@@ -76,5 +72,4 @@ data = {
 }
 
 res = requests.post(url, json=data)
-print(res.json()['result']['exec_result'])
-print(res.json())
+print(res.json()['result'][0]['exec_result'])

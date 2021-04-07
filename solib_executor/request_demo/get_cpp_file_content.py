@@ -136,6 +136,7 @@ class BaseExecutor:
                     result.append(start)
                     start += step
             return result
+        raise Exception(f'not support rule: {rule_str}')
 
     def get_variable_codes(self, arg_json: dict):
         self.var_id += 1
@@ -296,53 +297,103 @@ class BaseExecutor:
 
     def get_main_code(self, body: dict):
         args = body['args']
-        arg_names = []
-        codes = []
-        for i in range(len(args)):
-            arg = args[i]
-            arg_name, arg_codes = self.get_variable_codes(arg)
-            arg_names.append(arg_name)
-            codes.extend(arg_codes)
-        arg_str = ', '.join(arg_names)
-        method_name = body['method_name']
-        if 'class_name' in body:
-            class_name = body['class_name']
-            code = f'{class_name} cls;'
-            codes.append(code)
-            code = f'auto result = cls.{method_name}({arg_str});'
-            codes.append(code)
+        codes_list = []
+        rules = self.get_rules(args)
+        if len(rules) == 0:
+            codes = []
+            arg_names = []
+            for i in range(len(args)):
+                arg = args[i]
+                arg_name, arg_codes = self.get_variable_codes(arg)
+                arg_names.append(arg_name)
+                codes.extend(arg_codes)
+            arg_str = ', '.join(arg_names)
+            method_name = body['method_name']
+            if 'class_name' in body:
+                class_name = body['class_name']
+                code = f'{class_name} cls;'
+                codes.append(code)
+                code = f'auto result = cls.{method_name}({arg_str});'
+                codes.append(code)
+            else:
+                code = f'auto result = {method_name}({arg_str});'
+                codes.append(code)
+            result_codes = [
+                'Document d;',
+                'Value *pv = to_json(result, d);',
+                'StringBuffer buffer;',
+                'PrettyWriter <StringBuffer> writer(buffer);',
+                'writer.SetIndent(\' \', 2);',
+                'pv->Accept(writer);',
+                'std::cout << buffer.GetString() << std::endl;'
+            ]
+            codes.extend(result_codes)
+            codes = [f'    {code}' for code in codes]
+            codes.insert(0, 'int main(){')
+            codes.append('}')
+            codes_list.append(codes)
         else:
-            code = f'auto result = {method_name}({arg_str});'
-            codes.append(code)
-        result_codes = [
-            'Document d;',
-            'Value *pv = to_json(result, d);',
-            'StringBuffer buffer;',
-            'PrettyWriter <StringBuffer> writer(buffer);',
-            'writer.SetIndent(\' \', 2);',
-            'pv->Accept(writer);',
-            'std::cout << buffer.GetString() << std::endl;'
-        ]
-        codes.extend(result_codes)
-        codes = [f'    {code}' for code in codes]
-        codes.insert(0, 'int main(){')
-        codes.append('}')
-        return codes
+            rule_paths, rule_str = rules[0]
+            rule_vales = self.rule_to_list(rule_str)
+            tmp = args
+            for k in rule_paths[:-1]:
+                tmp = tmp[k]
+            for rule_vale in rule_vales:
+                tmp['value'] = rule_vale
+                codes = []
+                arg_names = []
+                for i in range(len(args)):
+                    arg = args[i]
+                    arg_name, arg_codes = self.get_variable_codes(arg)
+                    arg_names.append(arg_name)
+                    codes.extend(arg_codes)
+                arg_str = ', '.join(arg_names)
+                method_name = body['method_name']
+                if 'class_name' in body:
+                    class_name = body['class_name']
+                    code = f'{class_name} cls;'
+                    codes.append(code)
+                    code = f'auto result = cls.{method_name}({arg_str});'
+                    codes.append(code)
+                else:
+                    code = f'auto result = {method_name}({arg_str});'
+                    codes.append(code)
+                result_codes = [
+                    'Document d;',
+                    'Value *pv = to_json(result, d);',
+                    'StringBuffer buffer;',
+                    'PrettyWriter <StringBuffer> writer(buffer);',
+                    'writer.SetIndent(\' \', 2);',
+                    'pv->Accept(writer);',
+                    'std::cout << buffer.GetString() << std::endl;'
+                ]
+                codes.extend(result_codes)
+                codes = [f'    {code}' for code in codes]
+                codes.insert(0, 'int main(){')
+                codes.append('}')
+                codes_list.append(codes)
+
+        return codes_list
 
     def get_render_template_content(self, body: dict):
         header_file_names = body['header_file_names']
         include_codes = self.get_user_include_codes(header_file_names)
         return_type = body['return_type']
         method_code = self.get_to_json_method_codes(return_type)
-        main_code = self.get_main_code(body)
-        render_map = {
-            'user_include': '\n'.join(include_codes),
-            'user_function': '\n'.join(method_code),
-            'user_main': '\n'.join(main_code)
-        }
+        main_codes = self.get_main_code(body)
         f = open(template_file_path, 'r')
-        result = f.read() % render_map
-        return result
+        template_content = f.read()
+        f.close()
+        results = []
+        for code in main_codes:
+            render_map = {
+                'user_include': '\n'.join(include_codes),
+                'user_function': '\n'.join(method_code),
+                'user_main': '\n'.join(code)
+            }
+            result = template_content % render_map
+            results.append(result)
+        return results
 
 
 body = request_info = {
@@ -357,7 +408,7 @@ body = request_info = {
             "is_point": False,
             "point_depth": 0,
             "value": "zhangsan",
-            # "rule": "rand()",  # 0~1随机浮点
+            "rule": "range(1, 5)",  # 0~1随机浮点
             # "rule": "rand(0, 10)",  # 0~10随机浮点
             # "rule": "randint(0, 10)",  # 0~10随机整数，不包括10
             # "rule": "periphery(0, 10, 0.01)",   # 0-10边界检测，会生成4个测试数字：[-0.01, 0.01, 9.99, 10.01]
@@ -430,5 +481,5 @@ body = request_info = {
 
 be = BaseExecutor()
 rule = be.rule_to_list("periphery(1, 20, 0.05)")
-content = be.get_render_template_content(body)
+content = '\n\n\n\n\n\n\n\n'.join(be.get_render_template_content(body))
 print(content)
