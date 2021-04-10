@@ -10,6 +10,7 @@ import random
 import uuid
 import datetime
 from executors.models import TestCaseBody, MiddlewareTestCase
+import copy
 
 
 template_file_path = str(os.path.abspath(__file__).rsplit('/', 2)[0]) + '/templates/cplus_source_file.cpp.template'
@@ -121,8 +122,8 @@ class BaseExecutor(BaseView):
             while start < end:
                 result.append(start)
                 start += step
-            if rule_type != 'int':
-                raise Exception(f'range rule only support int type')
+            # if rule_type != 'int':
+            #     raise Exception(f'range rule only support int type')
             return result
 
         regexp = re.compile('range\( *(\d+) *, *(\d+) *\)$')
@@ -135,8 +136,8 @@ class BaseExecutor(BaseView):
             while start < end:
                 result.append(start)
                 start += step
-            if rule_type != 'int':
-                raise Exception(f'range rule only support int type')
+            # if rule_type != 'int':
+            #     raise Exception(f'range rule only support int type')
             return result
 
         regexp = re.compile('range\( *(\d+) *, *(\d+) *, *(\d+) *\)$')
@@ -355,16 +356,22 @@ class BaseExecutor(BaseView):
             codes.insert(0, 'int main(){')
             codes.append('}')
             codes_list.append(codes)
+            arg_list = args
         else:
             rule_paths, rule_type, rule_str = rules[0]
             rule_vales = self.rule_to_list(rule_str, rule_type)
             tmp = args
             for k in rule_paths[:-1]:
                 tmp = tmp[k]
+            del tmp['rule']
+
+            arg_list = []
             for rule_vale in rule_vales:
                 codes = []
                 arg_names = []
                 tmp['value'] = rule_vale
+                arg_list.append(copy.deepcopy(args))
+
                 for i in range(len(args)):
                     arg = args[i]
                     arg_name, arg_codes = self.get_variable_codes(arg)
@@ -396,14 +403,14 @@ class BaseExecutor(BaseView):
                 codes.append('}')
                 codes_list.append(codes)
 
-        return codes_list
+        return codes_list, arg_list
 
     def get_render_template_content(self, body: dict):
         header_file_names = body['header_file_names']
         include_codes = self.get_user_include_codes(header_file_names)
         return_type = body['return_type']
         method_code = self.get_to_json_method_codes(return_type)
-        main_codes = self.get_main_code(body)
+        main_codes, arg_list = self.get_main_code(body)
         f = open(template_file_path, 'r')
         template_content = f.read()
         f.close()
@@ -416,15 +423,17 @@ class BaseExecutor(BaseView):
             }
             result = template_content % render_map
             results.append(result)
-        return results
+        return results, arg_list
 
     def post(self, request: WSGIRequest):
         body = json.loads(request.body.decode('utf-8'))
-        code_contents = self.get_render_template_content(body)
-        tcb = TestCaseBody.create(body=body)
+        code_contents, arg_list = self.get_render_template_content(body)
+
+        # tcb = TestCaseBody.create(body=body)
         code_results = []
-        status_list = []
-        for code_content in code_contents:
+        for i in range(len(code_contents)):
+            code_content = code_contents[i]
+            arg = arg_list[i]
             time_str = datetime.date.today().strftime('%Y%m%d')
             uid = uuid.uuid1()
             file_id = f'{time_str}-{uid}'
@@ -437,46 +446,46 @@ class BaseExecutor(BaseView):
                 f'-L {self.demo_dir} -ldemo ' \
                 f'-o {target_file_path}'
             build_status, build_result = subprocess.getstatusoutput(build_cmd)
-            status = 200
             if build_status != 0:
                 exec_result = 'build failed, can not execute'
-                status = 500
+                exec_status = -1
             else:
                 exec_cmd = \
                     f'export DYLD_LIBRARY_PATH={self.demo_dir} &&' \
                     f'export LD_LIBRARY_PATH={self.demo_dir} &&' \
                     f'{target_file_path}'
                 exec_status, exec_result = subprocess.getstatusoutput(exec_cmd)
-                if exec_status != 0:
-                    status = 500
+
             tmp = {
+                'args': arg,
                 'build_result': build_result,
-                'exec_result': exec_result,
+                'exec_result': json.loads(exec_result),
                 'exec_code': code_content,
-                'file_id': file_id
+                'file_id': file_id,
+                'build_status': build_status,
+                'exec_status': exec_status
             }
             code_results.append(tmp)
-            status_list.append(status)
 
-            create_body = {
-                'file_id': file_id,
-                'test_case_body_id': tcb.id,
-                'code_file_path': cpp_file_path,
-                'header_file_names': body['header_file_names'],
-                'cxx_flags': body['cxx_flags'],
-                'middleware_name': body['middleware_name'],
-                'class_name': body['class_name'],
-                'method_name': body['method_name'],
-                'args': body['args'],
-                'return_type': body['return_type'],
-                'build_result': build_result,
-                'exec_result': exec_result
-            }
-            MiddlewareTestCase.create(**create_body)
+            # create_body = {
+            #     'file_id': file_id,
+            #     'test_case_body_id': tcb.id,
+            #     'code_file_path': cpp_file_path,
+            #     'header_file_names': body['header_file_names'],
+            #     'cxx_flags': body['cxx_flags'],
+            #     'middleware_name': body['middleware_name'],
+            #     'class_name': body['class_name'],
+            #     'method_name': body['method_name'],
+            #     'args': body['args'],
+            #     'return_type': body['return_type'],
+            #     'build_result': build_result,
+            #     'exec_result': exec_result
+            # }
+            # MiddlewareTestCase.create(**create_body)
 
         result = {
             'result': code_results,
             'message': 'success',
-            'status': status_list
+            'status': 200
         }
         return JsonResponse(result)

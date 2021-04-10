@@ -1,4 +1,5 @@
 import requests
+import json
 
 
 url = "http://api.shhy.tech:10080/executors/index"
@@ -6,7 +7,7 @@ data = {
     "header_file_names": ["demo.h"],
     "class_name": "MiddleWare",
     "cxx_flags": "",
-    "middleware_name": "demo",
+    "middleware_name": ["demo"],
     "method_name": "get_user",
     "args": [
         {
@@ -14,7 +15,7 @@ data = {
             "value": "zhangsan",
             "is_point": False,
             "point_depth": 0,
-            "rule": "randint(100, 500)"
+            "rule": "range(1, 3)"
         },
         {
             "type": "string",
@@ -72,4 +73,5 @@ data = {
 }
 
 res = requests.post(url, json=data)
-print(res.json()['result'][0]['exec_result'])
+print(res.json()['result'][0]['exec_code'])
+
