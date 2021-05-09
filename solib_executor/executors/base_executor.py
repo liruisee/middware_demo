@@ -425,6 +425,21 @@ class BaseExecutor(BaseView):
             results.append(result)
         return results, arg_list
 
+    def get(self, request: WSGIRequest):
+        body = json.loads(request.body)
+        main_codes, arg_list = self.get_main_code(body)
+        result = []
+        for arg in arg_list:
+            tmp = copy.deepcopy(body)
+            tmp['args'] = arg
+            result.append(tmp)
+        response = {
+            'result': result,
+            'message': 'success',
+            'status': 200
+        }
+        return JsonResponse(response)
+
     def post(self, request: WSGIRequest):
         body = json.loads(request.body.decode('utf-8'))
         code_contents, arg_list = self.get_render_template_content(body)
