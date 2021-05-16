@@ -7,4 +7,3 @@ oslo.utils==3.42.1
 uWSGI==2.0.18
 requests==2.23.0
 chardet==3.0.4
-chardet==3.0.4

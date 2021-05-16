@@ -1,22 +1,16 @@
-import json
 import os
-import subprocess
-import uuid
-import datetime
-import copy
-
-template_file_path = str(os.path.abspath(__file__).rsplit('/', 2)[0]) + '/templates/cplus_source_file.cpp.template'
-node_map = {item['id']: item for item in a['graph']}
 
 
-class BaseExecutor:
+class GenCode:
 
-    def __init__(self):
-        self.template_dir = '/Users/lr/PycharmProjects/middware_demo/solib_executor/templates'
+    def __init__(self, body: dict):
+        self.template_dir = str(os.path.abspath(__file__).rsplit('/', 2)[0]) + '/templates'
         self.var_id = 0
         self.result_id = 0
         self.demo_dir = '/Users/lr/PycharmProjects/middware_demo/demo1'
         self.template_file_path = f'{self.template_dir}/cplus_source_file.cpp.template'
+        self.body = body
+        self.node_map = {item['id']: item for item in body['graph']}
         self.cls_map = {}
 
     @staticmethod
@@ -26,40 +20,6 @@ class BaseExecutor:
             code = f'#include "{header_file}"'
             codes.append(code)
         return codes
-
-    @staticmethod
-    def get_rules(args):
-        rules = []
-        curr_nodes = []
-        for i in range(len(args)):
-            arg = args[i]
-            curr_nodes.append(([i], arg))
-        while len(curr_nodes) > 0:
-            tmp = []
-            for path, node in curr_nodes:
-                if 'rule' in node and node['rule'] != 'placeholder':
-                    rules.append((path + ['rule'], node['type'], node['rule']))
-                elif node['type'] in ('int', 'string', 'bool'):
-                    continue
-                elif node['type'] == 'enum':
-                    continue
-                elif node['type'] == 'class':
-                    mems = node['members']
-                    for i in range(len(mems)):
-                        mem = mems[i]
-                        tmp.append((path + ['members', i], mem))
-                elif node['type'] == 'array':
-                    mems = node['members']
-                    for i in range(len(mems)):
-                        mem = mems[i]
-                        tmp.append((path + ['members', i], mem))
-                else:
-                    raise Exception(f'the type {node["type"]} not support')
-            curr_nodes = tmp
-        if len(rules) >= 2:
-            rule_paths = [' -> '.join(map(repr, rule[0])) for rule in rules]
-            raise Exception(f'the rule count can not more than one, but found: {rule_paths}')
-        return rules
 
     def get_variable_codes(self, arg_json: dict):
         self.var_id += 1
@@ -279,19 +239,30 @@ class BaseExecutor:
                 curr_node['next_true'] is not None or curr_node['next_false'] is not None):
             raise Exception(f'node_id: {curr_node["id"]} error, next or true/false')
         if curr_node['next'] is not None:
-            codes = codes + self.get_graph_code(node_map[curr_node['next']], result_var_name)
+            codes = codes + self.get_graph_code(self.node_map[curr_node['next']], result_var_name)
             return codes
         if curr_node['next_true'] is not None:
-            codes.append('%sif(true){' % (indent * level))
-            codes = codes + self.get_graph_code(node_map[curr_node['next_true']], result_var_name, level + 1)
+            node_type = curr_node['node_info']['return_type']['type']
+            if curr_node['node_info']['return_type']['is_point'] is True:
+                code_str = '%sif(%s == nullptr){' % (indent * level, result_var_name)
+            elif node_type == 'int':
+                code_str = '%sif(%s == 0){' % (indent * level, result_var_name)
+            elif node_type == 'bool':
+                code_str = '%sif(%s == true){' % (indent * level, result_var_name)
+            elif node_type == 'string':
+                code_str = '%sif(%s.empty()){' % (indent * level, result_var_name)
+            else:
+                raise Exception(f'not support operator, node type is {node_type}')
+            codes.append(code_str)
+            codes = codes + self.get_graph_code(self.node_map[curr_node['next_true']], result_var_name, level + 1)
             codes.append('%s}' % (indent * level))
         if curr_node['next_false'] is not None:
             codes[-1] = codes[-1] + ' else {'
-            codes = codes + self.get_graph_code(node_map[curr_node['next_false']], result_var_name, level + 1)
+            codes = codes + self.get_graph_code(self.node_map[curr_node['next_false']], result_var_name, level + 1)
             codes.append('%s}' % (indent * level))
         return codes
 
-    def new_main_code(self, graph):
+    def get_main_code(self, graph):
         codes = [
             'int main(){',
             '    Document d;',
@@ -306,102 +277,16 @@ class BaseExecutor:
         codes.append('}')
         return codes
 
-    def get_main_code(self, body: dict):
-        args = body['args']
-        codes_list = []
-        rules = self.get_rules(args)
-        if len(rules) == 0:
-            codes = []
-            arg_names = []
-            for i in range(len(args)):
-                arg = args[i]
-                arg_name, arg_codes = self.get_variable_codes(arg)
-                arg_names.append(arg_name)
-                codes.extend(arg_codes)
-            arg_str = ', '.join(arg_names)
-            method_name = body['method_name']
-            if 'class_name' in body:
-                class_name = body['class_name']
-                code = f'{class_name} cls;'
-                codes.append(code)
-                code = f'auto result = cls.{method_name}({arg_str});'
-                codes.append(code)
-            else:
-                code = f'auto result = {method_name}({arg_str});'
-                codes.append(code)
-            result_codes = [
-                'Document d;',
-                'Value *pv = to_json(result, d);',
-                'StringBuffer buffer;',
-                'PrettyWriter <StringBuffer> writer(buffer);',
-                'writer.SetIndent(\' \', 2);',
-                'pv->Accept(writer);',
-                'std::cout << buffer.GetString() << std::endl;'
-            ]
-            codes.extend(result_codes)
-            codes = [f'    {code}' for code in codes]
-            codes.insert(0, 'int main(){')
-            codes.append('}')
-            codes_list.append(codes)
-            arg_list = args
-        else:
-            rule_paths, rule_type, rule_str = rules[0]
-            rule_vales = self.rule_to_list(rule_str, rule_type)
-            tmp = args
-            for k in rule_paths[:-1]:
-                tmp = tmp[k]
-            del tmp['rule']
-
-            arg_list = []
-            for rule_vale in rule_vales:
-                codes = []
-                arg_names = []
-                tmp['value'] = rule_vale
-                arg_list.append(copy.deepcopy(args))
-
-                for i in range(len(args)):
-                    arg = args[i]
-                    arg_name, arg_codes = self.get_variable_codes(arg)
-                    arg_names.append(arg_name)
-                    codes.extend(arg_codes)
-                arg_str = ', '.join(arg_names)
-                method_name = body['method_name']
-                if 'class_name' in body:
-                    class_name = body['class_name']
-                    code = f'{class_name} cls;'
-                    codes.append(code)
-                    code = f'auto result = cls.{method_name}({arg_str});'
-                    codes.append(code)
-                else:
-                    code = f'auto result = {method_name}({arg_str});'
-                    codes.append(code)
-                result_codes = [
-                    'Document d;',
-                    'Value *pv = to_json(result, d);',
-                    'StringBuffer buffer;',
-                    'PrettyWriter <StringBuffer> writer(buffer);',
-                    'writer.SetIndent(\' \', 2);',
-                    'pv->Accept(writer);',
-                    'std::cout << buffer.GetString() << std::endl;'
-                ]
-                codes.extend(result_codes)
-                codes = [f'    {code}' for code in codes]
-                codes.insert(0, 'int main(){')
-                codes.append('}')
-                codes_list.append(codes)
-
-        return codes_list, arg_list
-
-    def get_render_template_content(self, body: dict):
+    def get_render_template_content(self) -> str:
+        body = self.body
         header_file_names = body['header_file_names']
         include_codes = self.get_user_include_codes(header_file_names)
         return_type_list = [node['node_info']['return_type'] for node in body['graph']]
         method_code = self.get_to_json_method_codes(return_type_list)
-        main_code = self.new_main_code(body['graph'])
-        f = open(template_file_path, 'r')
+        main_code = self.get_main_code(body['graph'])
+        f = open(self.template_file_path, 'r')
         template_content = f.read()
         f.close()
-        results = []
 
         render_map = {
             'user_include': '\n'.join(include_codes),
@@ -411,51 +296,9 @@ class BaseExecutor:
         result = template_content % render_map
         return result
 
-    def post(self, body: dict):
-        code_contents, arg_list = self.get_render_template_content(body)
-
-        code_results = []
-        for i in range(len(code_contents)):
-            code_content = code_contents[i]
-            arg = arg_list[i]
-            time_str = datetime.date.today().strftime('%Y%m%d')
-            uid = uuid.uuid1()
-            file_id = f'{time_str}-{uid}'
-            cpp_file_path = f'{self.template_dir}/{file_id}.cpp'
-            target_file_path = f'{self.template_dir}/{file_id}.out'
-            with open(cpp_file_path, 'w') as f:
-                f.write(code_content)
-            build_cmd = \
-                f'g++ -std=c++11 {cpp_file_path} -I {self.demo_dir} ' \
-                f'-L {self.demo_dir} -ldemo ' \
-                f'-o {target_file_path}'
-            build_status, build_result = subprocess.getstatusoutput(build_cmd)
-            if build_status != 0:
-                exec_result = 'build failed, can not execute'
-                exec_status = -1
-            else:
-                exec_cmd = \
-                    f'export DYLD_LIBRARY_PATH={self.demo_dir} &&' \
-                    f'export LD_LIBRARY_PATH={self.demo_dir} &&' \
-                    f'{target_file_path}'
-                exec_status, exec_result = subprocess.getstatusoutput(exec_cmd)
-
-            tmp = {
-                'args': arg,
-                'build_result': build_result,
-                'exec_result': json.loads(exec_result),
-                'exec_code': code_content,
-                'file_id': file_id,
-                'build_status': build_status,
-                'exec_status': exec_status
-            }
-            code_results.append(tmp)
-
-        return code_results
-
 
 if __name__ == '__main__':
-    data = {
+    body = {
         "header_file_names": ["demo.h"],
         "class_name": "MiddleWare",
         "cxx_flags": "",
@@ -632,6 +475,5 @@ if __name__ == '__main__':
         ]
 
     }
-
-    be = BaseExecutor()
-    print(be.get_render_template_content(data))
+    be = GenCode(body)
+    print(be.get_render_template_content())

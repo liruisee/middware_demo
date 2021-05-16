@@ -4,27 +4,26 @@
 
 
 User *MiddleWare::get_user(const std::string &school, const std::string &city){
-    auto *u = new User();
-    u->school = school;
-    u->city = city;
-    u->peoples = std::vector<People>();
-    People *peo = new People();
-    peo->name = "zhangsan";
-    peo->p_name = &peo->name;
-    peo->age = 20;
-    peo->p_age = &peo->age;
-    peo->sex = 1;
-    peo->p_sex = &peo->sex;
-    u->peoples.push_back(*peo);
-
-    peo = new People();
-    peo->name = "lisi";
-    peo->p_name = &peo->name;
-    peo->age = 25;
-    peo->p_age = &peo->age;
-    peo->sex = 0;
-    peo->p_sex = &peo->sex;
-    u->peoples.push_back(*peo);
+    auto *u = new User("zhangsan", 20, 1);
     return u;
 }
 
+std::string User::get_name(std::string name){
+    return this->name;
+};
+
+int User::get_age(int age){
+    return this->age;
+};
+
+int User::get_id(int id){
+    return this->id;
+};
+
+int User::get_id1(int id){
+    return this->id + 1;
+};
+
+int User::get_id2(int id){
+    return this->id + 2;
+};

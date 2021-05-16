@@ -8,19 +8,21 @@
 #include <iostream>
 #include <vector>
 
-struct People{
-    std::string name;
-    std::string *p_name = nullptr;
-    int age;
-    int *p_age = nullptr;
-    int sex;
-    int *p_sex;
-};
 
 struct User{
-    std::string school;
-    std::string city;
-    std::vector<People > peoples;
+
+public:
+    User(std::string name, int age, int id): name(name), age(age), id(id){};
+    std::string get_name(std::string name);
+    int get_age(int age);
+    int get_id(int id);
+    int get_id1(int id);
+    int get_id2(int id);
+
+    std::string name;
+    int age;
+    int id;
+
 };
 
 struct MiddleWare{
